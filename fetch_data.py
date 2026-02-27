@@ -24,8 +24,3 @@ def fetch_pitch_data(start_dt: str, pitcher: str, end_dt: str | None = None) -> 
         return daily_stats
     except:
         raise RuntimeError
-
-if __name__ == "__main__":
-    
-    df = fetch_pitch_data(start_dt="2026-02-24", pitcher="Ranger Suarez")
-    print(df.head())
