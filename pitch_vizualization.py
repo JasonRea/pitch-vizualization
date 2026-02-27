@@ -4,6 +4,31 @@ import numpy as np
 from scipy.optimize import brentq
 from manim import *
 
+# TODO Variable strike zone size dependent on batter height
+
+# Borrowed from TJstats pitch color palette
+
+PITCH_COLORS = {
+    "FF": "#FF007D",  # 4-Seam Fastball
+    "FA": "#FF007D",  # Fastball
+    "SI": "#98165D",  # Sinker
+    "FC": "#BE5FA0",  # Cutter
+    "CH": "#F79E70",  # Changeup
+    "FS": "#FE6100",  # Splitter
+    "SC": "#F08223",  # Screwball
+    "FO": "#FFB000",  # Forkball
+    "SL": "#67E18D",  # Slider
+    "ST": "#1BB999",  # Sweeper
+    "SV": "#376748",  # Slurve
+    "KC": "#311D8B",  # Knuckle Curve
+    "CU": "#3025CE",  # Curveball
+    "CS": "#274BFC",  # Slow Curve
+    "EP": "#648FFF",  # Eephus
+    "KN": "#867A08",  # Knuckleball
+    "PO": "#472C30",  # Pitch Out
+    "UN": "#9C8975",  # Unknown
+}
+
 def construct_pitch_vizualization(date: str, pitcher: str):
 
     df = fetch_pitch_data(start_dt=date, pitcher=pitcher)
@@ -23,6 +48,7 @@ def construct_pitch_vizualization(date: str, pitcher: str):
     pitches = []
     end_points = []
     end_times = []
+    colors = []
 
     for _, row in df.iterrows():
         x0  = float(row['release_pos_x'])
@@ -35,6 +61,8 @@ def construct_pitch_vizualization(date: str, pitcher: str):
         ay  = float(row['ay'])
         az  = float(row['az'])
 
+        pitch_type = str(row['pitch_type'])
+
         t_end = brentq(lambda t: position(t, x0, y0, z0, vx0, vy0, vz0, ax, ay, az)[1], 0, 1.0)
 
         pitch = ParametricFunction(
@@ -42,6 +70,7 @@ def construct_pitch_vizualization(date: str, pitcher: str):
                 axes.c2p(*position(t * t_end, x0, y0, z0, vx0, vy0, vz0, ax, ay, az)),
             t_range=[0, 1],
             stroke_width=2,
+            color=PITCH_COLORS[pitch_type]
         )
         pitches.append(pitch)
 
@@ -49,6 +78,8 @@ def construct_pitch_vizualization(date: str, pitcher: str):
         end_points.append(end_point)
 
         end_times.append(t_end)
+
+        colors.append(PITCH_COLORS[pitch_type])
 
     class PitchTrajectory(ThreeDScene):
         def construct(self):
@@ -88,9 +119,9 @@ def construct_pitch_vizualization(date: str, pitcher: str):
             self.add(grid, strike_zone)
 
             # Pitch
-            for pitch, end_point, t_end in zip(pitches, end_points, end_times):
+            for pitch, end_point, t_end, color in zip(pitches, end_points, end_times, colors):
 
-                end_dot = Dot3D(point=end_point, radius=0.05, color=RED)
+                end_dot = Dot3D(point=end_point, radius=0.05, color=color)
 
                 self.play(Create(pitch), run_time=t_end)
                 self.add(end_dot)
@@ -102,9 +133,9 @@ def clean_data_for_vizualizaiton(df: pd.DataFrame) -> pd.DataFrame:
     columns_to_keep = ['vx0', 'vy0', 'vz0', 
                    'ax', 'ay', 'az', 
                    'release_pos_x', 'release_pos_z', 'release_pos_y',
-                   'pitch_type', 'events', 'description']
+                   'pitch_type',]
 
-    return df[columns_to_keep]
+    return df[columns_to_keep].dropna()
 
 def position(t: float, x0: float, y0: float, z0: float, vx0: float, vy0: float, vz0: float, ax: float, ay: float, az: float):
     x = x0 + vx0*t + 0.5*ax*t**2
@@ -113,14 +144,12 @@ def position(t: float, x0: float, y0: float, z0: float, vx0: float, vy0: float, 
 
     return np.array([x, y, z])
 
-def render_scene(scene: Scene, quality: str | None = None, filepath: str | None = None, filename: str | None = None):
+'''
+quality -> "low_quality" "medium_quality" "high_quality" "fourk_quality"
+'''
+def render_scene(scene: Scene, quality: str | None = None, filename: str | None = None):
 
     if quality: config.quality = quality
-    if filepath: config.media_dir = filepath
     if filename: config.output_file = filename
 
     scene().render()
-
-if __name__ == "__main__":
-    Pitches = construct_pitch_vizualization("2026-02-24", "Ranger Suarez")
-    Pitches().render()
