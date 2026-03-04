@@ -148,6 +148,7 @@ def high_heat_filter(df: pd.DataFrame) -> pd.DataFrame:
     columns_to_keep = [
             'pitcher',
             'pitch_type',
+            'pitch_name',
             'release_spin_rate', 
             'pfx_x', 'pfx_z', # HB is represented by pfx_x and iVB is represented by pfx_z
             #'estimated_woba_using_speedangle', NOTE Let's bring this back later, not great with spring training data I guess
