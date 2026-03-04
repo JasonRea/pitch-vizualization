@@ -214,6 +214,7 @@ class VizualizationBuilder:
 
         return PitchTrajectory
     
+    # TODO add background coloring for other percentiles
     def buildp_high_heat(self, date: str):
         '''
         Plots the High Heat graphic.
@@ -255,7 +256,7 @@ class VizualizationBuilder:
         SUBTEXT  = "#666666"
         HDR_BG   = "#1a1a1a"
 
-        COL_LABELS = ["Pitch", "Velo", "Spin", "HB", "iVB"]
+        COL_LABELS = ["Pitch", "Velo (mph)", "Spin (rpm)", "HB (in)", "iVB (in)"]
         N_COLS     = len(COL_LABELS)
 
         # Figure
