@@ -410,7 +410,7 @@ class VizualizationBuilder:
             raw = [None, velo, float(spin), hb, ivb]
 
             col_frac = 1 / N_COLS
-            pill_w   = col_frac * 0.98
+            pill_w   = col_frac * 1
             pill_h   = 0.44
             pill_y   = 0.28   # bottom-left y of pill
 
