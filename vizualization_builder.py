@@ -3,11 +3,13 @@ import os
 import pandas as pd
 import numpy as np
 from scipy.optimize import brentq
+from scipy.stats import norm as sp_norm
 from manim import *
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.patheffects as pe
+import matplotlib.colors as mcolors
 from matplotlib.patches import FancyBboxPatch, Circle
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from PIL import Image as PILImage
@@ -220,8 +222,8 @@ class VizualizationBuilder:
         Plots the High Heat graphic.
         '''
 
-        df = daily_pitches(date)
-        df = high_heat_filter(df)
+        full_day_df = daily_pitches(date)
+        df = high_heat_filter(full_day_df)
 
         if df.empty:
             raise RuntimeError(f"No pitch data found for {date}.")
@@ -265,10 +267,8 @@ class VizualizationBuilder:
         TITLE_H    = 0.8
         HDR_H      = 0.40
         FOOTER_H   = 0.30
-        FIG_H      = TITLE_H + HDR_H + n * ROW_H + FOOTER_H
-        FIG_W      = 7.2
 
-        fig = plt.figure(figsize=(FIG_W, FIG_H), facecolor="white", dpi=150)
+        fig = plt.figure(figsize=(7.2, 9), facecolor="white", dpi=150)
 
         height_ratios = [TITLE_H, HDR_H] + [ROW_H] * n + [FOOTER_H]
         gs = gridspec.GridSpec(
@@ -324,6 +324,27 @@ class VizualizationBuilder:
         # Divider line below header
         ax_hdr.axhline(0, color=DARK, linewidth=1, xmin=0, xmax=1)
 
+        # Gradient Colormap
+        _cmap = mcolors.LinearSegmentedColormap.from_list(
+            "stat_heat", ["#648FFF", "#FFFFFF", "#FFB000"]
+        )
+
+        def _pct_color(value: float, series: pd.Series) -> str:
+            """Map *value* to a hex colour via its CDF percentile in *series*."""
+            s = pd.to_numeric(series, errors="coerce").dropna()
+            if s.empty or s.std() == 0:
+                return "#ffffff"
+            pct = float(sp_norm.cdf(value, loc=s.mean(), scale=s.std()))
+            return mcolors.to_hex(_cmap(pct))
+
+        # Pre-compute stat distributions from the full (unfiltered) day
+        _stat_series = {
+            1: full_day_df["release_speed"],
+            2: full_day_df["release_spin_rate"],
+            3: full_day_df["pfx_x"] * 12,
+            4: full_day_df["pfx_z"] * 12,
+        }
+
         # Player rows
         for i in range(n):
             row_bg = BORDER
@@ -378,24 +399,30 @@ class VizualizationBuilder:
 
             pitch_bg = PITCH_COLORS.get(pitch_type, PITCH_COLORS["UN"])
 
-            values = [
+            formatted = [
                 ptype,
                 f"{velo:.1f}",
                 f"{int(spin):,}",
                 f"{hb:+.1f}",
                 f"{ivb:+.1f}",
             ]
+            # Raw floats for percentile look-up
+            raw = [None, velo, float(spin), hb, ivb]
 
             col_frac = 1 / N_COLS
-            for j, val in enumerate(values):
+            pill_w   = col_frac * 0.98
+            pill_h   = 0.44
+            pill_y   = 0.28   # bottom-left y of pill
+
+            for j, val in enumerate(formatted):
                 cx = (j + 0.5) * col_frac
 
-                # Color box background + white text
                 if j == 0:
+                    # Pitch-type rounded pill (existing style)
                     pill = FancyBboxPatch(
-                        (0.0, 0.30), col_frac, 0.40,
+                        (cx - pill_w / 2, pill_y), pill_w, pill_h,
                         boxstyle="square,pad=0",
-                        facecolor=pitch_bg, edgecolor="white",
+                        facecolor=pitch_bg, edgecolor="none",
                         transform=ax_data.transAxes, zorder=1, clip_on=False,
                     )
                     ax_data.add_patch(pill)
@@ -405,12 +432,24 @@ class VizualizationBuilder:
                                  fontsize=7.5, color="white", fontweight="bold",
                                  zorder=2)
                 else:
-                    color  = DARK
+                    # Gradient pill
+                    bg_hex = _pct_color(raw[j], _stat_series[j])
+                    pill = FancyBboxPatch(
+                        (cx - pill_w / 2, pill_y), pill_w, pill_h,
+                        boxstyle="square,pad=0",
+                        facecolor=bg_hex, edgecolor="none",
+                        transform=ax_data.transAxes, zorder=1, clip_on=False,
+                    )
+                    ax_data.add_patch(pill)
+                    color  = ACCENT if j == 1 else DARK
                     weight = "bold"  if j == 1 else "normal"
                     ax_data.text(cx, 0.50, val,
                                  transform=ax_data.transAxes,
                                  ha="center", va="center",
-                                 fontsize=10, color=color, fontweight=weight)
+                                 fontsize=10, color=color, fontweight=weight,
+                                 zorder=2)
+
+            ax_data.axhline(0, color=BORDER, linewidth=0.8)
 
             # Bottom divider
             ax_data.axhline(0, color=DARK, linewidth=0.8)
