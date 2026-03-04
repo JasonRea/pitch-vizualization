@@ -6,6 +6,8 @@ def print_usage():
     print("Options:")
     print("  -d <date> <pitcher> [quality]                   Render all pitches from an outing on the given day")
     print('                                                  Example: python3 run_vizualization.py -d "2026-02-24" "Ranger Suarez" "high_quality"')
+    print("  -h <date>                                       Generate and save the High Heat graphic for the given day")
+    print('                                                  Example: python3 run_vizualization.py -h "2026-02-24"')
     sys.exit(1)
 
 if __name__ == '__main__':
@@ -24,6 +26,9 @@ if __name__ == '__main__':
                     .buildm_pitches()
                 )
                 VizualizationBuilder.render(scene_class, quality=arg_3, filename=f"{arg_2} {arg_1}")
+
+            case "-h":
+                VizualizationBuilder().buildp_high_heat(date=arg_1)
 
             case _:
                 print_usage()
