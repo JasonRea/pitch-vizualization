@@ -821,7 +821,7 @@ class VizualizationBuilder:
         # Title
         ax_title = fig.add_subplot(gs[0])
         ax_title.axis("off")
-        ax_title.text(0.5, 0.70, "The Big Five",
+        ax_title.text(0.5, 0.70, "Wheeeee!",
                     transform=ax_title.transAxes, ha="center", va="center",
                     fontsize=22, fontweight="bold", color=DARK)
         ax_title.text(0.5, 0.22, f"Top 5 Plays by Win Probability Added  ·  {date}",
@@ -918,7 +918,7 @@ class VizualizationBuilder:
 
             formatted = [
                 event,
-                f"+{wpa:.3f}"     if wpa     >= 0 else f"{wpa:.3f}",
+                f"{wpa:.3f}"     if wpa     >= 0 else f"{wpa:.3f}",
                 f"+{run_exp:.3f}" if run_exp >= 0 else f"{run_exp:.3f}",
                 str(inning),
             ]
