@@ -216,7 +216,6 @@ class VizualizationBuilder:
 
         return PitchTrajectory
     
-    # TODO add background coloring for other percentiles
     def buildp_high_heat(self, date: str):
         '''
         Plots the High Heat graphic.
@@ -471,6 +470,252 @@ class VizualizationBuilder:
         output_dir = "media/images/plots"
         os.makedirs(output_dir, exist_ok=True)
         fig.savefig(fname=f"{output_dir}/high_heat_{date}.png",
+                    bbox_inches="tight", dpi=150, facecolor="white")
+
+        return fig
+    
+    def buildp_absolute_missiles(self, date: str):
+
+        full_day_df = daily_pitches(date)
+
+        filtered_df = absolute_missiles_filter(full_day_df)
+
+        if filtered_df.empty:
+            raise RuntimeError(f"No batted ball data found for {date}.")
+
+        batter_ids = filtered_df["batter"].astype(int).tolist()
+        n = len(batter_ids)
+
+        # Fetch assets
+        headshots: list[PILImage.Image | None] = [None] * n
+        bios:      list[tuple | None]          = [None] * n
+
+        def _fetch_hs(idx, pid):
+            try:    headshots[idx] = player_headshot(str(pid))
+            except: pass
+
+        def _fetch_bio(idx, pid):
+            try:    bios[idx] = player_bio(str(pid))
+            except: pass
+
+        with ThreadPoolExecutor(max_workers=n * 2) as ex:
+            futs = (
+                [ex.submit(_fetch_hs,  i, pid) for i, pid in enumerate(batter_ids)] +
+                [ex.submit(_fetch_bio, i, pid) for i, pid in enumerate(batter_ids)]
+            )
+            for f in as_completed(futs):
+                f.result()
+
+        # PALETTE
+        BORDER  = "#e0e0e0"
+        DARK    = "#1a1a1a"
+        ACCENT  = "#DA2626"
+        SUBTEXT = "#666666"
+
+        EVENT_COLORS = {
+            "Home Run": "#C41E3A",
+            "Triple":   "#7B2D8B",
+            "Double":   "#1565C0",
+            "Single":   "#2E7D32",
+            "Flyout":   "#555555",
+        }
+
+        COL_LABELS = ["Event", "Exit Velo (mph)", "Distance (ft)"]
+        N_COLS     = len(COL_LABELS)
+
+        # Figure dimensions mirror high_heat
+        ROW_H    = 1.3
+        TITLE_H  = 0.8
+        HDR_H    = 0.40
+        FOOTER_H = 0.30
+
+        fig = plt.figure(figsize=(7.2, 9), facecolor="white", dpi=150)
+
+        height_ratios = [TITLE_H, HDR_H] + [ROW_H] * n + [FOOTER_H]
+        gs = gridspec.GridSpec(
+            2 + n + 1, 1,
+            figure=fig,
+            height_ratios=height_ratios,
+            hspace=0,
+            left=0.03, right=0.97,
+            top=1.0, bottom=0.0,
+        )
+
+        # Rocket emoji
+        try:
+            _emoji_resp = requests.get("https://em-content.zobj.net/source/apple/419/rocket_1f680.png")
+            _emoji_img  = PILImage.open(BytesIO(_emoji_resp.content)).convert("RGBA")
+            _emoji_arr  = np.array(_emoji_img)
+        except Exception:
+            _emoji_arr = None
+
+        # Title
+        ax_title = fig.add_subplot(gs[0])
+        ax_title.axis("off")
+        ax_title.text(0.5, 0.70, "Absolute Missiles",
+                    transform=ax_title.transAxes, ha="center", va="center",
+                    fontsize=22, fontweight="bold", color=DARK)
+        ax_title.text(0.5, 0.22, f"Top 5 Hardest Hit Fly Balls  ·  {date}",
+                    transform=ax_title.transAxes, ha="center", va="center",
+                    fontsize=11, color=SUBTEXT)
+
+        if _emoji_arr is not None:
+            for x_pos in (0.20, 0.76):
+                ax_e = ax_title.inset_axes([x_pos, 0.38, 0.07, 0.58])
+                ax_e.imshow(_emoji_arr)
+                ax_e.axis("off")
+
+        # Column header row
+        HS_FRAC = 0.20
+        ax_hdr = fig.add_subplot(gs[1])
+        ax_hdr.set_xlim(0, 1)
+        ax_hdr.set_ylim(0, 1)
+        ax_hdr.axis("off")
+
+        col_xs = [HS_FRAC + (1 - HS_FRAC) * (j + 0.5) / N_COLS for j in range(N_COLS)]
+        for label, cx in zip(COL_LABELS, col_xs):
+            ax_hdr.text(cx, 0.5, label,
+                        transform=ax_hdr.transAxes,
+                        ha="center", va="center",
+                        fontsize=10, fontweight="bold", color=DARK,
+                        linespacing=1.2, zorder=2)
+
+        ax_hdr.axhline(0, color=DARK, linewidth=1, xmin=0, xmax=1)
+
+        # Gradient colormap (blue → white → gold, same as high_heat)
+        _cmap = mcolors.LinearSegmentedColormap.from_list(
+            "stat_heat", ["#648FFF", "#FFFFFF", "#FFB000"]
+        )
+
+        def _pct_color(value: float, series: pd.Series) -> str:
+            """Map value to a hex colour via its CDF percentile in series."""
+            s = pd.to_numeric(series, errors="coerce").dropna()
+            if s.empty or s.std() == 0:
+                return "#ffffff"
+            pct = float(sp_norm.cdf(value, loc=s.mean(), scale=s.std()))
+            return mcolors.to_hex(_cmap(pct))
+
+        # Pre-compute stat distributions from the full (unfiltered) day
+        _stat_series = {
+            1: full_day_df["launch_speed"],
+            2: full_day_df["hit_distance_sc"],
+        }
+
+        # Player rows
+        for i in range(n):
+            row_bg = BORDER
+
+            gs_row = gridspec.GridSpecFromSubplotSpec(
+                1, 2,
+                subplot_spec=gs[2 + i],
+                width_ratios=[HS_FRAC, 1 - HS_FRAC],
+                wspace=0,
+            )
+
+            # Headshot + name (left pane)
+            ax_hs = fig.add_subplot(gs_row[0])
+            ax_hs.set_facecolor(row_bg)
+            ax_hs.set_xlim(0, 1)
+            ax_hs.set_ylim(0, 1)
+            ax_hs.axis("off")
+
+            hs_img = headshots[i]
+            name   = bios[i][0] if bios[i] else "Unknown"
+
+            if hs_img is not None:
+                inset = ax_hs.inset_axes([0.10, 0.20, 0.80, 0.75])
+                inset.imshow(np.array(hs_img.convert("RGBA")))
+                inset.axis("off")
+            else:
+                circle = plt.Circle((0.50, 0.60), 0.30,
+                                    color="#cccccc", transform=ax_hs.transAxes,
+                                    zorder=2)
+                ax_hs.add_patch(circle)
+
+            ax_hs.text(0.50, 0.10, name,
+                    transform=ax_hs.transAxes,
+                    ha="center", va="center",
+                    fontsize=8, color=DARK)
+            ax_hs.axhline(0, color=DARK, linewidth=0.8)
+
+            # Stat pills (right pane)
+            ax_data = fig.add_subplot(gs_row[1])
+            ax_data.set_facecolor(row_bg)
+            ax_data.set_xlim(0, 1)
+            ax_data.set_ylim(0, 1)
+            ax_data.axis("off")
+
+            event    = filtered_df["events"].iloc[i]
+            velo     = filtered_df["launch_speed"].iloc[i]
+            distance = filtered_df["hit_distance_sc"].iloc[i]
+
+            formatted = [
+                event,
+                f"{velo:.1f}",
+                f"{int(distance)}",
+            ]
+            raw = [None, velo, float(distance)]
+
+            col_frac = 1 / N_COLS
+            pill_w   = col_frac * 0.98
+            pill_h   = 0.44
+            pill_y   = 0.28
+
+            for j, val in enumerate(formatted):
+                cx = (j + 0.5) * col_frac
+
+                if j == 0:
+                    # Event-type colored pill
+                    event_bg = EVENT_COLORS.get(event, "#555555")
+                    pill = FancyBboxPatch(
+                        (cx - pill_w / 2, pill_y), pill_w, pill_h,
+                        boxstyle="square,pad=0",
+                        facecolor=event_bg, edgecolor="none",
+                        transform=ax_data.transAxes, zorder=1, clip_on=False,
+                    )
+                    ax_data.add_patch(pill)
+                    ax_data.text(cx, 0.50, val,
+                                transform=ax_data.transAxes,
+                                ha="center", va="center",
+                                fontsize=7.5, color="white", fontweight="bold",
+                                zorder=2)
+                else:
+                    # Gradient pill (percentile-colored)
+                    bg_hex = _pct_color(raw[j], _stat_series[j])
+                    pill = FancyBboxPatch(
+                        (cx - pill_w / 2, pill_y), pill_w, pill_h,
+                        boxstyle="square,pad=0",
+                        facecolor=bg_hex, edgecolor="none",
+                        transform=ax_data.transAxes, zorder=1, clip_on=False,
+                    )
+                    ax_data.add_patch(pill)
+                    color  = ACCENT if j == 1 else DARK
+                    weight = "bold"  if j == 1 else "normal"
+                    ax_data.text(cx, 0.50, val,
+                                transform=ax_data.transAxes,
+                                ha="center", va="center",
+                                fontsize=10, color=color, fontweight=weight,
+                                zorder=2)
+
+            ax_data.axhline(0, color=DARK, linewidth=0.8)
+
+        # Footer
+        ax_footer = fig.add_subplot(gs[2 + n])
+        ax_footer.axis("off")
+        ax_footer.axhline(1.0, color=DARK, linewidth=1.0)
+        ax_footer.text(0.02, 0.45, "By: @baseballfornerds",
+                    transform=ax_footer.transAxes,
+                    ha="left", va="center",
+                    fontsize=8, color=SUBTEXT, style="italic")
+        ax_footer.text(0.98, 0.45, "Data: MLB  |  Images: MLB, ESPN",
+                    transform=ax_footer.transAxes,
+                    ha="right", va="center",
+                    fontsize=8, color=SUBTEXT, style="italic")
+
+        # Save
+        output_dir = "media/images/plots"
+        os.makedirs(output_dir, exist_ok=True)
+        fig.savefig(fname=f"{output_dir}/absolute_missiles_{date}.png",
                     bbox_inches="tight", dpi=150, facecolor="white")
 
         return fig
