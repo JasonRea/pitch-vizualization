@@ -33,6 +33,14 @@ if __name__ == '__main__':
             case "-m":
                 VizualizationBuilder().buildp_absolute_missiles(date=arg_1)
 
+            case "-w":
+                VizualizationBuilder().buildp_big_five(date=arg_1)
+
+            case "-a":
+                VizualizationBuilder().buildp_high_heat(date=arg_1)
+                VizualizationBuilder().buildp_absolute_missiles(date=arg_1)
+                VizualizationBuilder().buildp_big_five(date=arg_1)
+
             case _:
                 print_usage()
 
