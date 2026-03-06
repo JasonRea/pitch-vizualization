@@ -155,3 +155,30 @@ def high_heat_filter(df: pd.DataFrame) -> pd.DataFrame:
             'release_speed'
         ]
     return df[columns_to_keep].dropna().sort_values('release_speed', ascending=False).head(5)
+
+def absolute_missiles_filter(df: pd.DataFrame) -> pd.DataFrame:
+
+    event_map = {
+        "single" : "Single",
+        "double" : "Double",
+        "triple" : "Triple",
+        "home_run" : "Home Run",
+        "field_out" : "Flyout",
+    }
+
+    columns_to_keep = ['launch_speed',
+                   'batter',
+                   'events',
+                   'bb_type',
+                   'hit_distance_sc',
+                   ]
+
+    df = df[columns_to_keep]
+
+    df = df[df['bb_type'] == 'fly_ball']
+
+    df = df.drop('bb_type', axis=1)
+
+    df['events'] = df['events'].map(event_map)
+
+    return df.sort_values('launch_speed', ascending=False).head()
