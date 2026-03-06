@@ -41,6 +41,26 @@ MLB_TEAMS = [
     {"team": "WSH", "logo_url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/mlb/500/scoreboard/wsh.png&h=500&w=500"}
 ]
 
+EVENT_MAP = {
+    "single" : "Single",
+    "double" : "Double",
+    "triple" : "Triple",
+    "home_run" : "Home Run",
+    "field_out" : "Flyout",
+    "strikeout" : "Strikeout",
+    "grounded_into_double_play" : "GIDP",
+    "force_out" : "Force Out",
+    "fielders_choice" : "Fielder's Choice",
+    "sac_bunt" : "Sac Bunt",
+    "hit_by_pitch" : "Hit By Pitch",
+    "walk" : "walk",
+    "sac_fly" : "Sac Fly",
+    "double_play" : "Double Play",
+    "field_error" : "Error",
+    "fielders_choice_out" : "Fielder's Choice"
+
+}
+
 df_image = pd.DataFrame(MLB_TEAMS)
 IMAGE_DICT = df_image.set_index('team')['logo_url'].to_dict()
 
@@ -158,19 +178,13 @@ def high_heat_filter(df: pd.DataFrame) -> pd.DataFrame:
 
 def absolute_missiles_filter(df: pd.DataFrame) -> pd.DataFrame:
 
-    event_map = {
-        "single" : "Single",
-        "double" : "Double",
-        "triple" : "Triple",
-        "home_run" : "Home Run",
-        "field_out" : "Flyout",
-    }
-
     columns_to_keep = ['launch_speed',
+                   'launch_angle',
                    'batter',
                    'events',
                    'bb_type',
                    'hit_distance_sc',
+                   'estimated_ba_using_speedangle',
                    ]
 
     df = df[columns_to_keep]
@@ -179,6 +193,24 @@ def absolute_missiles_filter(df: pd.DataFrame) -> pd.DataFrame:
 
     df = df.drop('bb_type', axis=1)
 
-    df['events'] = df['events'].map(event_map)
+    df['events'] = df['events'].map(EVENT_MAP)
 
-    return df.sort_values('launch_speed', ascending=False).head()
+    return df.sort_values('launch_speed', ascending=False).head(5)
+
+def big_five_filter(df: pd.DataFrame) -> pd.DataFrame:
+
+    columns_to_keep = [
+                   'batter', 
+                   'pitcher',
+                   'delta_home_win_exp',
+                   'delta_run_exp',
+                   "events",
+                   "inning",
+                   'des',
+                   ]
+
+    df = df[columns_to_keep]
+
+    df['events'] = df['events'].map(EVENT_MAP)
+
+    return df.sort_values('delta_home_win_exp', ascending=False).head(5)
