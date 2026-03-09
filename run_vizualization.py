@@ -8,38 +8,46 @@ def print_usage():
     print('                                                  Example: python3 run_vizualization.py -d "2026-02-24" "Ranger Suarez" "high_quality"')
     print("  -h <date>                                       Generate and save the High Heat graphic for the given day")
     print('                                                  Example: python3 run_vizualization.py -h "2026-02-24"')
+    print("  -m <date>                                       Generate and save the Absolute Missiles graphic for the given day")
+    print('                                                  Example: python3 run_vizualization.py -m "2026-02-24"')
+    print("  -w <date>                                       Generate and save the Wheeeee! graphic for the given day")
+    print('                                                  Example: python3 run_vizualization.py -w "2026-02-24"')
+    print("  -a <date>                                       Generate and save all three graphics for the given day")
+    print('                                                  Example: python3 run_vizualization.py -a "2026-02-24"')
     sys.exit(1)
 
 if __name__ == '__main__':
-    
-    flag = sys.argv[1] if len(sys.argv) > 1 else None
+
+    flag  = sys.argv[1] if len(sys.argv) > 1 else None
     arg_1 = sys.argv[2] if len(sys.argv) > 2 else None
     arg_2 = sys.argv[3] if len(sys.argv) > 3 else None
     arg_3 = sys.argv[4] if len(sys.argv) > 4 else None
+
+    builder = VizualizationBuilder()
 
     try:
         match flag:
             case "-d":
                 scene_class = (
-                    VizualizationBuilder()
+                    builder
                     .load_pitches(date=arg_1, pitcher=arg_2)
                     .buildm_pitches()
                 )
                 VizualizationBuilder.render(scene_class, quality=arg_3, filename=f"{arg_2} {arg_1}")
 
             case "-h":
-                VizualizationBuilder().buildp_high_heat(date=arg_1)
+                builder.buildp(date=arg_1, config=VizualizationBuilder._high_heat_config())
 
             case "-m":
-                VizualizationBuilder().buildp_absolute_missiles(date=arg_1)
+                builder.buildp(date=arg_1, config=VizualizationBuilder._absolute_missiles_config())
 
             case "-w":
-                VizualizationBuilder().buildp_big_five(date=arg_1)
+                builder.buildp(date=arg_1, config=VizualizationBuilder._big_five_config())
 
             case "-a":
-                VizualizationBuilder().buildp_high_heat(date=arg_1)
-                VizualizationBuilder().buildp_absolute_missiles(date=arg_1)
-                VizualizationBuilder().buildp_big_five(date=arg_1)
+                builder.buildp(date=arg_1, config=VizualizationBuilder._high_heat_config())
+                builder.buildp(date=arg_1, config=VizualizationBuilder._absolute_missiles_config())
+                builder.buildp(date=arg_1, config=VizualizationBuilder._big_five_config())
 
             case _:
                 print_usage()
