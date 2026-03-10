@@ -53,7 +53,7 @@ EVENT_MAP = {
     "fielders_choice" : "Fielder's Choice",
     "sac_bunt" : "Sac Bunt",
     "hit_by_pitch" : "Hit By Pitch",
-    "walk" : "walk",
+    "walk" : "Walk",
     "sac_fly" : "Sac Fly",
     "double_play" : "Double Play",
     "field_error" : "Error",
