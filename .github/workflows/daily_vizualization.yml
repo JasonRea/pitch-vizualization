@@ -1,0 +1,108 @@
+name: Daily Baseball Vizualizations
+
+on:
+  schedule:
+    # Runs every day at 9:00 AM EDT (13:00 UTC) in summer
+    # Shifts to 8:00 AM EST in winter — cron doesn't observe DST
+    # Statcast data for a given day is usually available by late morning
+    - cron: '0 13 * * *'
+  workflow_dispatch:
+    # Also allows manual triggering from the GitHub UI
+    # with an optional date override (defaults to yesterday)
+    inputs:
+      date:
+        description: 'Date to generate vizualizations for (YYYY-MM-DD). Defaults to yesterday.'
+        required: false
+        default: ''
+
+jobs:
+  generate-and-upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install system-level dependencies required by Manim (pycairo, ManimPango, ffmpeg)
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libcairo2-dev \
+            libpango1.0-dev \
+            ffmpeg \
+            texlive-latex-base \
+            texlive-fonts-recommended
+
+      # Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      # Resolve Target date
+      #    Uses manual input if provided, otherwise defaults to yesterday
+      #    (since today's Statcast data isn't always available yet)
+      - name: Resolve target date
+        id: date
+        run: |
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            echo "TARGET_DATE=${{ github.event.inputs.date }}" >> $GITHUB_ENV
+          else
+            echo "TARGET_DATE=$(date -d 'yesterday' '+%Y-%m-%d')" >> $GITHUB_ENV
+          fi
+          echo "Generating vizualizations for: $TARGET_DATE"
+
+      # Run script, generating all graphics
+      - name: Generate vizualizations
+        run: |
+          python3 run_vizualization.py -a "$TARGET_DATE"
+
+      # Upload outputs to DigitalOcean Spaces
+      #    Secrets are set in: GitHub repo → Settings → Secrets → Actions
+      - name: Upload to DigitalOcean Spaces
+        env:
+          DO_SPACES_KEY:    ${{ secrets.DO_SPACES_KEY }}
+          DO_SPACES_SECRET: ${{ secrets.DO_SPACES_SECRET }}
+          DO_SPACES_BUCKET: ${{ secrets.DO_SPACES_BUCKET }}   # e.g. "baseballfornerds"
+          DO_SPACES_REGION: ${{ secrets.DO_SPACES_REGION }}   # e.g. "nyc3"
+        run: |
+          python3 - <<'EOF'
+          import boto3, os, glob
+          from pathlib import Path
+
+          session = boto3.session.Session()
+          client = session.client(
+              's3',
+              region_name=os.environ['DO_SPACES_REGION'],
+              endpoint_url=f"https://{os.environ['DO_SPACES_REGION']}.digitaloceanspaces.com",
+              aws_access_key_id=os.environ['DO_SPACES_KEY'],
+              aws_secret_access_key=os.environ['DO_SPACES_SECRET'],
+          )
+
+          bucket = os.environ['DO_SPACES_BUCKET']
+          date   = os.environ['TARGET_DATE']
+
+          output_files = glob.glob("media/images/plots/*.png") + glob.glob("media/images/plots/*.jpg")
+
+          if not output_files:
+              print("No output files found — check that your script saves images to media/images/plots/")
+              exit(1)
+
+          for filepath in output_files:
+              filename  = Path(filepath).name
+              s3_key    = f"vizualizations/{date}/{filename}"
+              client.upload_file(
+                  filepath, bucket, s3_key,
+                  ExtraArgs={'ACL': 'public-read', 'ContentType': 'image/png'}
+              )
+              print(f"Uploaded: https://{bucket}.{os.environ['DO_SPACES_REGION']}.digitaloceanspaces.com/{s3_key}")
+
+          EOF
