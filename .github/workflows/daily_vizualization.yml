@@ -24,8 +24,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Cache apt packages to avoid re-downloading on every run
+      - name: Cache system dependencies
+        id: cache-apt
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-${{ runner.os }}-manim-libs
+
       # Install system-level dependencies required by Manim (pycairo, ManimPango, ffmpeg)
       - name: Install system dependencies
+        if: steps.cache-apt.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -48,15 +57,14 @@ jobs:
           pip install -r requirements.txt
 
       # Resolve Target date
-      #    Uses manual input if provided, otherwise defaults to yesterday
-      #    (since today's Statcast data isn't always available yet)
+      #    Uses manual input if provided, otherwise defaults to yesterday in ET
       - name: Resolve target date
         id: date
         run: |
           if [ -n "${{ github.event.inputs.date }}" ]; then
             echo "TARGET_DATE=${{ github.event.inputs.date }}" >> $GITHUB_ENV
           else
-            echo "TARGET_DATE=$(date -d 'yesterday' '+%Y-%m-%d')" >> $GITHUB_ENV
+            echo "TARGET_DATE=$(TZ='America/New_York' date -d 'yesterday' '+%Y-%m-%d')" >> $GITHUB_ENV
           fi
           echo "Generating vizualizations for: $TARGET_DATE"
 
