@@ -208,3 +208,10 @@ __marimo__/
 
 # Manim
 media
+
+# Claude
+.claude
+CLAUDE.md
+
+# Notebooks
+*.ipynb
