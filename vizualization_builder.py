@@ -310,14 +310,15 @@ class VizualizationBuilder:
                     scene_objects.append(label)
                 self.add(*scene_objects)
 
-                # Animate each pitch
-                for pitch, end_point, t_end, color in zip(
-                    pitches, end_points, end_times, colors
-                ):
-                    end_dot = Dot3D(point=end_point, radius=0.05, color=color)
-                    self.play(Create(pitch), run_time=t_end)
-                    self.add(end_dot)
-                    self.wait()
+                # Animate all pitches simultaneously
+                animations = [
+                    Create(pitch, run_time=t_end)
+                    for pitch, t_end in zip(pitches, end_times)
+                ]
+                self.play(*animations)
+                for end_point, color in zip(end_points, colors):
+                    self.add(Dot3D(point=end_point, radius=0.05, color=color))
+                self.wait()
 
         return PitchTrajectory
     
