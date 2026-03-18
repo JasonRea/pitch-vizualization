@@ -164,6 +164,8 @@ def team_logo(pitcher_id: str) -> ImageFile:
     # Open the image from the response content
     return Image.open(BytesIO(response.content))
 
+# -----FILTERS----------
+
 def high_heat_filter(df: pd.DataFrame) -> pd.DataFrame:
     columns_to_keep = [
             'pitcher',
@@ -214,3 +216,50 @@ def big_five_filter(df: pd.DataFrame) -> pd.DataFrame:
     df['events'] = df['events'].map(EVENT_MAP)
 
     return df.sort_values('delta_home_win_exp', ascending=False).head(5)
+
+def pitches_filter(df: pd.DataFrame):
+    columns_to_keep = [
+            "vx0", "vy0", "vz0",
+            "ax", "ay", "az",
+            "release_pos_x", "release_pos_z", "release_pos_y",
+            "pitch_type",
+        ]
+    
+    return df[columns_to_keep].dropna()
+
+def pitches_filter_vs_left(df: pd.DataFrame): 
+    columns_to_keep = [
+            "vx0", "vy0", "vz0",
+            "ax", "ay", "az",
+            "release_pos_x", "release_pos_z", "release_pos_y",
+            "pitch_type", 'stand'
+        ]
+    
+    df = df[columns_to_keep].dropna()
+
+    return df[df['stand'] == 'L']
+
+def pitches_filter_vs_right(df: pd.DataFrame): 
+    columns_to_keep = [
+            "vx0", "vy0", "vz0",
+            "ax", "ay", "az",
+            "release_pos_x", "release_pos_z", "release_pos_y",
+            "pitch_type", 'stand'
+        ]
+    
+    df = df[columns_to_keep].dropna()
+
+    return df[df['stand'] == 'R']
+
+# TODO list valid names
+def pitches_filter_by_name(df: pd.DataFrame, pitch_name: str): 
+    columns_to_keep = [
+            "vx0", "vy0", "vz0",
+            "ax", "ay", "az",
+            "release_pos_x", "release_pos_z", "release_pos_y",
+            "pitch_type", 'stand'
+        ]
+    
+    df = df[columns_to_keep].dropna()
+
+    return df[df['pitch_type'] == pitch_name]

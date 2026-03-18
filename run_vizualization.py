@@ -1,5 +1,6 @@
 import sys
 from vizualization_builder import *
+from fetch_data import *
 
 def print_usage():
     print("Usage: python3 run_vizualization.py [option] [argument]\n")
@@ -30,10 +31,48 @@ if __name__ == '__main__':
             case "-d":
                 scene_class = (
                     builder
-                    .load_pitches(date=arg_1, pitcher=arg_2)
+                    .load_pitches(date=arg_1, pitcher=arg_2, filter=pitches_filter)
                     .buildm_pitches()
                 )
                 VizualizationBuilder.render(scene_class, quality=arg_3, filename=f"{arg_2} {arg_1}")
+
+            case "-dl":
+                scene_class = (
+                    builder
+                    .load_pitches(date=arg_1, pitcher=arg_2, filter=pitches_filter_vs_left)
+                    .buildm_pitches()
+                )
+                VizualizationBuilder.render(scene_class, quality=arg_3, filename=f"{arg_2} {arg_1} vs Left")
+
+            case "-dr":
+                scene_class = (
+                    builder
+                    .load_pitches(date=arg_1, pitcher=arg_2, filter=pitches_filter_vs_right)
+                    .buildm_pitches()
+                )
+                VizualizationBuilder.render(scene_class, quality=arg_3, filename=f"{arg_2} {arg_1} vs Right")
+
+            case "-da":
+                scene_class = (
+                    builder
+                    .load_pitches(date=arg_1, pitcher=arg_2, filter=pitches_filter)
+                    .buildm_pitches()
+                )
+                VizualizationBuilder.render(scene_class, quality=arg_3, filename=f"{arg_2} {arg_1}")
+
+                scene_class_left = (
+                    builder
+                    .load_pitches(date=arg_1, pitcher=arg_2, filter=pitches_filter_vs_left)
+                    .buildm_pitches()
+                )
+                VizualizationBuilder.render(scene_class_left, quality=arg_3, filename=f"{arg_2} {arg_1} vs Left")
+
+                scene_class_right = (
+                    builder
+                    .load_pitches(date=arg_1, pitcher=arg_2, filter=pitches_filter_vs_right)
+                    .buildm_pitches()
+                )
+                VizualizationBuilder.render(scene_class_right, quality=arg_3, filename=f"{arg_2} {arg_1} vs Right")
 
             case "-h":
                 builder.buildp(date=arg_1, config=VizualizationBuilder._high_heat_config())

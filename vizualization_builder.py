@@ -111,11 +111,7 @@ PITCH_COLORS = {
     "UN": "#9C8975",  # Unknown
 }
 
-# TODO Variable strike zone size dependent on batter height
-# TODO Other POVs (not sure exactly but probably as LHB, RHB, pitcher)
-# TODO Specify specific pitch types, vs rhb, lhb, vs particular batters
-# TODO Setup s3 bucket + github actions (check w/ github student dev pack)
-
+# TODO Specify specific pitch types, vs rhb, lhb, vs particular batters (IN DEVELOPMENT)
 
 def position(
     t: float,
@@ -150,12 +146,13 @@ class VizualizationBuilder:
         self._end_times: list = []
         self._colors: list = []
         self._axes: ThreeDAxes | None = None
+        self._filter_label: str | None = None
 
     # ------------------------------------------------------------------
     # Builder steps
     # ------------------------------------------------------------------
 
-    def load_pitches(self, date: str, pitcher: str) -> "VizualizationBuilder":
+    def load_pitches(self, date: str, pitcher: str, filter: Callable[[pd.DataFrame], pd.DataFrame]) -> "VizualizationBuilder":
         """Fetch Statcast data and build the parametric curves"""
 
         self._pitches.clear()
@@ -165,14 +162,15 @@ class VizualizationBuilder:
 
         df = pitch_data(start_dt=date, pitcher=pitcher)
 
-        # Brief Data Cleaning
-        columns_to_keep = [
-            "vx0", "vy0", "vz0",
-            "ax", "ay", "az",
-            "release_pos_x", "release_pos_z", "release_pos_y",
-            "pitch_type",
-        ]
-        df = df[columns_to_keep].dropna()
+        # Apply filter
+        df = filter(df)
+
+        if filter is pitches_filter_vs_left:
+            self._filter_label = "vs Left"
+        elif filter is pitches_filter_vs_right:
+            self._filter_label = "vs Right"
+        else:
+            self._filter_label = None
 
         self._axes = ThreeDAxes(
             x_range=[-5, 5, 1],
@@ -227,12 +225,13 @@ class VizualizationBuilder:
         if self._axes is None:
             raise RuntimeError("Call load_pitches() before build().")
 
-        axes       = self._axes
-        scale      = self.SCALE
-        pitches    = list(self._pitches)
-        end_points = list(self._end_points)
-        end_times  = list(self._end_times)
-        colors     = list(self._colors)
+        axes         = self._axes
+        scale        = self.SCALE
+        pitches      = list(self._pitches)
+        end_points   = list(self._end_points)
+        end_times    = list(self._end_times)
+        colors       = list(self._colors)
+        filter_label = self._filter_label
 
         class PitchTrajectory(ThreeDScene):
             def construct(self):
@@ -302,7 +301,14 @@ class VizualizationBuilder:
                 home_plate.set_stroke(WHITE, 2)
                 home_plate.set_fill(opacity=0)
 
-                self.add(grid, strike_zone, right_foul_line, left_foul_line, home_plate)
+                scene_objects = [grid, strike_zone, right_foul_line, left_foul_line, home_plate]
+                if filter_label is not None:
+                    label = Text(filter_label, color=WHITE)
+                    label.scale(0.3)
+                    label.move_to(axes.c2p(0, 0, sz_top + 2.5))
+                    label.rotate(90 * DEGREES, axis=RIGHT)
+                    scene_objects.append(label)
+                self.add(*scene_objects)
 
                 # Animate each pitch
                 for pitch, end_point, t_end, color in zip(
