@@ -276,7 +276,33 @@ class VizualizationBuilder:
                     frame_center=axes.c2p(0, 30, 3),
                 )
 
-                self.add(grid, strike_zone)
+                # Foul lines (XY plane, z=0): y=x right, y=-x left
+                foul_extent = 330  # feet
+                right_foul_line = Line3D(
+                    start=axes.c2p(1, 1, 0),
+                    end=axes.c2p(foul_extent, foul_extent, 0),
+                    thickness=0.02,
+                    color=WHITE,
+                )
+                left_foul_line = Line3D(
+                    start=axes.c2p(-1, 1, 0),
+                    end=axes.c2p(-foul_extent, foul_extent, 0),
+                    thickness=0.02,
+                    color=WHITE,
+                )
+
+                # Home plate (irregular pentagon, tip at origin, flat edge toward pitcher)
+                home_plate = Polygon(
+                    axes.c2p(0,         0,        0),  # tip
+                    axes.c2p( 8.5/12,  8.5/12,   0),  # right back
+                    axes.c2p( 8.5/12,  17/12,    0),  # right front
+                    axes.c2p(-8.5/12,  17/12,    0),  # left front
+                    axes.c2p(-8.5/12,  8.5/12,   0),  # left back
+                )
+                home_plate.set_stroke(WHITE, 2)
+                home_plate.set_fill(opacity=0)
+
+                self.add(grid, strike_zone, right_foul_line, left_foul_line, home_plate)
 
                 # Animate each pitch
                 for pitch, end_point, t_end, color in zip(
