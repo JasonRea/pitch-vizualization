@@ -15,6 +15,8 @@ def print_usage():
     print('                                                  Example: python3 run_vizualization.py -w "2026-02-24"')
     print("  -a <date>                                       Generate and save all three graphics for the given day")
     print('                                                  Example: python3 run_vizualization.py -a "2026-02-24"')
+    print("  -dA <date> [quality]                            Render all three splits for every pitcher on the given day")
+    print('                                                  Example: python3 run_vizualization.py -dA "2026-02-24" "low_quality"')
     sys.exit(1)
 
 if __name__ == '__main__':
@@ -73,6 +75,25 @@ if __name__ == '__main__':
                     .buildm_pitches()
                 )
                 VizualizationBuilder.render(scene_class_right, quality=arg_3, filename=f"{arg_2} {arg_1} vs Right")
+
+            case "-dA":
+                day_df = daily_pitches(arg_1)
+                for pitcher_id, pitcher_df in day_df.groupby("pitcher"):
+                    pitcher_name = player_bio(pitcher_id)[0]
+                    for filt, label in [
+                        (pitches_filter,           ""),
+                        (pitches_filter_vs_left,   " vs Left"),
+                        (pitches_filter_vs_right,  " vs Right"),
+                    ]:
+                        builder.load_pitches_from_df(pitcher_df, filt)
+                        if builder._axes is None:
+                            continue
+                        scene_class = builder.buildm_pitches()
+                        VizualizationBuilder.render(
+                            scene_class,
+                            quality=arg_2,
+                            filename=f"{pitcher_name} {arg_1}{label}",
+                        )
 
             case "-h":
                 builder.buildp(date=arg_1, config=VizualizationBuilder._high_heat_config())

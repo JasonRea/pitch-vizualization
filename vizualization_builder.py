@@ -219,6 +219,78 @@ class VizualizationBuilder:
 
         return self
 
+    def load_pitches_from_df(
+        self,
+        df: pd.DataFrame,
+        filter: Callable[[pd.DataFrame], pd.DataFrame],
+    ) -> "VizualizationBuilder":
+        """Build parametric curves from an already-fetched Statcast DataFrame."""
+
+        self._pitches.clear()
+        self._end_points.clear()
+        self._end_times.clear()
+        self._colors.clear()
+
+        df = filter(df)
+
+        if filter is pitches_filter_vs_left:
+            self._filter_label = "vs Left"
+        elif filter is pitches_filter_vs_right:
+            self._filter_label = "vs Right"
+        else:
+            self._filter_label = None
+
+        if df.empty:
+            self._axes = None
+            return self
+
+        self._axes = ThreeDAxes(
+            x_range=[-5, 5, 1],
+            y_range=[0, 60.5, 10],
+            z_range=[0, 20, 1],
+            x_length=self.SCALE * 10,
+            y_length=self.SCALE * 60.5,
+            z_length=self.SCALE * 20,
+        )
+
+        for _, row in df.iterrows():
+            x0  = float(row["release_pos_x"])
+            y0  = float(row["release_pos_y"])
+            z0  = float(row["release_pos_z"])
+            vx0 = float(row["vx0"])
+            vy0 = float(row["vy0"])
+            vz0 = float(row["vz0"])
+            ax  = float(row["ax"])
+            ay  = float(row["ay"])
+            az  = float(row["az"])
+            pitch_type = str(row["pitch_type"])
+
+            t_end = brentq(
+                lambda t: position(t, x0, y0, z0, vx0, vy0, vz0, ax, ay, az)[1],
+                0, 1.0,
+            )
+
+            pitch = ParametricFunction(
+                lambda t,
+                    x0=x0, y0=y0, z0=z0,
+                    vx0=vx0, vy0=vy0, vz0=vz0,
+                    ax=ax, ay=ay, az=az,
+                    t_end=t_end:
+                    self._axes.c2p(*position(t * t_end, x0, y0, z0, vx0, vy0, vz0, ax, ay, az)),
+                t_range=[0, 1],
+                stroke_width=2,
+                color=PITCH_COLORS.get(pitch_type, PITCH_COLORS["UN"]),
+            )
+
+            self._pitches.append(pitch)
+            self._end_points.append(
+                self._axes.c2p(*position(t_end, x0, y0, z0, vx0, vy0, vz0, ax, ay, az))
+            )
+            self._end_times.append(t_end)
+            self._colors.append(PITCH_COLORS.get(pitch_type, PITCH_COLORS["UN"]))
+
+        return self
+
     def buildm_pitches(self) -> type[ThreeDScene]:
         """Return a Manim ThreeDScene class of pitches ready to be rendered."""
 
