@@ -15,7 +15,9 @@ def print_usage():
     print('                                                  Example: python3 run_vizualization.py -w "2026-02-24"')
     print("  -a <date>                                       Generate and save all three graphics for the given day")
     print('                                                  Example: python3 run_vizualization.py -a "2026-02-24"')
-    print("  -dA <date> [quality]                            Render all three splits for every pitcher on the given day")
+    print("  -dp <date> <pitcher> <pitch_type> [quality]     Render a single pitch type from an outing")
+    print('                                                  Example: python3 run_vizualization.py -dp "2026-02-24" "Ranger Suarez" "FF" "high_quality"')
+    print("  -dA <date> [quality]                            Render all splits (all/vs-left/vs-right + per pitch type) for every pitcher on the given day")
     print('                                                  Example: python3 run_vizualization.py -dA "2026-02-24" "low_quality"')
     sys.exit(1)
 
@@ -25,6 +27,7 @@ if __name__ == '__main__':
     arg_1 = sys.argv[2] if len(sys.argv) > 2 else None
     arg_2 = sys.argv[3] if len(sys.argv) > 3 else None
     arg_3 = sys.argv[4] if len(sys.argv) > 4 else None
+    arg_4 = sys.argv[5] if len(sys.argv) > 5 else None
 
     builder = VizualizationBuilder()
 
@@ -53,6 +56,14 @@ if __name__ == '__main__':
                     .buildm_pitches()
                 )
                 VizualizationBuilder.render(scene_class, quality=arg_3, filename=f"{arg_2} {arg_1} vs Right")
+
+            case "-dp":
+                scene_class = (
+                    builder
+                    .load_pitches(date=arg_1, pitcher=arg_2, filter=pitches_filter_by_pitch_type(arg_3))
+                    .buildm_pitches()
+                )
+                VizualizationBuilder.render(scene_class, quality=arg_4, filename=f"{arg_2} {arg_1} {arg_3}")
 
             case "-da":
                 scene_class = (
@@ -93,6 +104,19 @@ if __name__ == '__main__':
                             scene_class,
                             quality=arg_2,
                             filename=f"{pitcher_name} {arg_1}{label}",
+                        )
+
+                    pitch_types = pitcher_df["pitch_type"].dropna().unique()
+                    for code in pitch_types:
+                        filt = pitches_filter_by_pitch_type(code)
+                        builder.load_pitches_from_df(pitcher_df, filt)
+                        if builder._axes is None:
+                            continue
+                        scene_class = builder.buildm_pitches()
+                        VizualizationBuilder.render(
+                            scene_class,
+                            quality=arg_2,
+                            filename=f"{pitcher_name} {arg_1} {code}",
                         )
 
             case "-h":

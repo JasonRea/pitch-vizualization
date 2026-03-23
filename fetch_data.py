@@ -251,8 +251,20 @@ def pitches_filter_vs_right(df: pd.DataFrame):
 
     return df[df['stand'] == 'R']
 
+def pitches_filter_by_pitch_type(pitch_type_code: str):
+    def _filter(df: pd.DataFrame) -> pd.DataFrame:
+        return (
+            df[["vx0", "vy0", "vz0", "ax", "ay", "az",
+                "release_pos_x", "release_pos_z", "release_pos_y",
+                "pitch_type", "pitch_name"]]
+            .dropna()
+            .loc[lambda d: d["pitch_type"] == pitch_type_code]
+        )
+    _filter._pitch_type = pitch_type_code
+    return _filter
+
 # TODO list valid names
-def pitches_filter_by_name(df: pd.DataFrame, pitch_name: str): 
+def pitches_filter_by_name(df: pd.DataFrame, pitch_name: str):
     columns_to_keep = [
             "vx0", "vy0", "vz0",
             "ax", "ay", "az",

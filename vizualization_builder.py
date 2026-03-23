@@ -147,6 +147,7 @@ class VizualizationBuilder:
         self._colors: list = []
         self._axes: ThreeDAxes | None = None
         self._filter_label: str | None = None
+        self._filter_label_color = WHITE
 
     # ------------------------------------------------------------------
     # Builder steps
@@ -167,10 +168,17 @@ class VizualizationBuilder:
 
         if filter is pitches_filter_vs_left:
             self._filter_label = "vs Left"
+            self._filter_label_color = WHITE
         elif filter is pitches_filter_vs_right:
             self._filter_label = "vs Right"
+            self._filter_label_color = WHITE
+        elif hasattr(filter, "_pitch_type"):
+            pitch_name = df["pitch_name"].iloc[0] if not df.empty else filter._pitch_type
+            self._filter_label = pitch_name
+            self._filter_label_color = ManimColor(PITCH_COLORS.get(filter._pitch_type, PITCH_COLORS["UN"]))
         else:
             self._filter_label = None
+            self._filter_label_color = WHITE
 
         self._axes = ThreeDAxes(
             x_range=[-5, 5, 1],
@@ -235,10 +243,17 @@ class VizualizationBuilder:
 
         if filter is pitches_filter_vs_left:
             self._filter_label = "vs Left"
+            self._filter_label_color = WHITE
         elif filter is pitches_filter_vs_right:
             self._filter_label = "vs Right"
+            self._filter_label_color = WHITE
+        elif hasattr(filter, "_pitch_type"):
+            pitch_name = df["pitch_name"].iloc[0] if not df.empty else filter._pitch_type
+            self._filter_label = pitch_name
+            self._filter_label_color = ManimColor(PITCH_COLORS.get(filter._pitch_type, PITCH_COLORS["UN"]))
         else:
             self._filter_label = None
+            self._filter_label_color = WHITE
 
         if df.empty:
             self._axes = None
@@ -304,6 +319,7 @@ class VizualizationBuilder:
         end_times    = list(self._end_times)
         colors       = list(self._colors)
         filter_label = self._filter_label
+        filter_label_color = self._filter_label_color
 
         class PitchTrajectory(ThreeDScene):
             def construct(self):
@@ -375,7 +391,7 @@ class VizualizationBuilder:
 
                 scene_objects = [grid, strike_zone, right_foul_line, left_foul_line, home_plate]
                 if filter_label is not None:
-                    label = Text(filter_label, color=WHITE)
+                    label = Text(filter_label, color=filter_label_color)
                     label.scale(0.3)
                     label.move_to(axes.c2p(0, 0, sz_top + 2.5))
                     label.rotate(90 * DEGREES, axis=RIGHT)
