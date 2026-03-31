@@ -1,4 +1,5 @@
 import sys
+import traceback
 from vizualization_builder import *
 from fetch_data import *
 
@@ -137,5 +138,5 @@ if __name__ == '__main__':
                 print_usage()
 
     except Exception as e:
-        print(e)
+        traceback.print_exc()
         print_usage()
