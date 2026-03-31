@@ -204,7 +204,7 @@ class VizualizationBuilder:
             try:
                 t_end = brentq(
                     lambda t: position(t, x0, y0, z0, vx0, vy0, vz0, ax, ay, az)[1],
-                    0, 1.0,
+                    0, 1.5,
                 )
             except ValueError:
                 print(f"Skipping pitch: brentq failed (y0={y0:.2f}, vy0={vy0:.2f}, ay={ay:.2f})")
@@ -228,6 +228,9 @@ class VizualizationBuilder:
             )
             self._end_times.append(t_end)
             self._colors.append(PITCH_COLORS.get(pitch_type, PITCH_COLORS["UN"]))
+
+        if not self._pitches:
+            self._axes = None
 
         return self
 
@@ -287,7 +290,7 @@ class VizualizationBuilder:
             try:
                 t_end = brentq(
                     lambda t: position(t, x0, y0, z0, vx0, vy0, vz0, ax, ay, az)[1],
-                    0, 1.0,
+                    0, 1.5,
                 )
             except ValueError:
                 print(f"Skipping pitch: brentq failed (y0={y0:.2f}, vy0={vy0:.2f}, ay={ay:.2f})")
@@ -311,6 +314,9 @@ class VizualizationBuilder:
             )
             self._end_times.append(t_end)
             self._colors.append(PITCH_COLORS.get(pitch_type, PITCH_COLORS["UN"]))
+
+        if not self._pitches:
+            self._axes = None
 
         return self
 
