@@ -201,10 +201,14 @@ class VizualizationBuilder:
             az  = float(row["az"])
             pitch_type = str(row["pitch_type"])
 
-            t_end = brentq(
-                lambda t: position(t, x0, y0, z0, vx0, vy0, vz0, ax, ay, az)[1],
-                0, 1.0,
-            )
+            try:
+                t_end = brentq(
+                    lambda t: position(t, x0, y0, z0, vx0, vy0, vz0, ax, ay, az)[1],
+                    0, 1.0,
+                )
+            except ValueError:
+                print(f"Skipping pitch: brentq failed (y0={y0:.2f}, vy0={vy0:.2f}, ay={ay:.2f})")
+                continue
 
             pitch = ParametricFunction(
                 lambda t,
@@ -280,10 +284,14 @@ class VizualizationBuilder:
             az  = float(row["az"])
             pitch_type = str(row["pitch_type"])
 
-            t_end = brentq(
-                lambda t: position(t, x0, y0, z0, vx0, vy0, vz0, ax, ay, az)[1],
-                0, 1.0,
-            )
+            try:
+                t_end = brentq(
+                    lambda t: position(t, x0, y0, z0, vx0, vy0, vz0, ax, ay, az)[1],
+                    0, 1.0,
+                )
+            except ValueError:
+                print(f"Skipping pitch: brentq failed (y0={y0:.2f}, vy0={vy0:.2f}, ay={ay:.2f})")
+                continue
 
             pitch = ParametricFunction(
                 lambda t,
