@@ -350,7 +350,7 @@ class VizualizationBuilder:
                     width=sz_width * scale,
                     height=(sz_top - sz_bottom) * scale,
                 )
-                strike_zone.move_to(axes.c2p(0, 0, sz_mid_z))
+                strike_zone.move_to(axes.c2p(0, 8.5, sz_mid_z))
                 strike_zone.rotate(90 * DEGREES, axis=RIGHT)
                 strike_zone.set_stroke(WHITE, 4)
                 strike_zone.set_fill(opacity=0)
