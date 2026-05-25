@@ -219,6 +219,7 @@ CLAUDE.md
 frontend/node_modules/
 frontend/dist/
 frontend/.env.local
+!frontend/src/lib/
 
 # Backend
 backend/__pycache__/
