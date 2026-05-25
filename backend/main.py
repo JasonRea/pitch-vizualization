@@ -252,21 +252,53 @@ async def trigger_render(req: RenderRequest):
 # GET /render/{run_id}
 # ---------------------------------------------------------------------------
 
+_SKIP_STEPS = {"Set up job", "Complete job"}
+
+
+def _map_step_status(step: dict) -> str:
+    gh_status   = step.get("status", "queued")
+    conclusion  = step.get("conclusion")
+    if gh_status == "in_progress":
+        return "running"
+    if gh_status == "completed":
+        return "done" if conclusion == "success" else "failed"
+    return "pending"
+
+
 @app.get("/render/{run_id}")
 async def get_render_status(run_id: int):
     async with httpx.AsyncClient() as client:
-        r = await client.get(
-            f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/actions/runs/{run_id}",
-            headers=_GH_HEADERS,
-            timeout=10,
+        run_resp, jobs_resp = await asyncio.gather(
+            client.get(
+                f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/actions/runs/{run_id}",
+                headers=_GH_HEADERS,
+                timeout=10,
+            ),
+            client.get(
+                f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/actions/runs/{run_id}/jobs",
+                headers=_GH_HEADERS,
+                timeout=10,
+            ),
         )
-    if r.status_code == 404:
-        raise HTTPException(404, detail="Run not found")
-    r.raise_for_status()
 
-    run        = r.json()
-    status     = run["status"]          # queued | in_progress | completed
-    conclusion = run.get("conclusion")  # success | failure | cancelled | None
+    if run_resp.status_code == 404:
+        raise HTTPException(404, detail="Run not found")
+    run_resp.raise_for_status()
+
+    run        = run_resp.json()
+    status     = run["status"]
+    conclusion = run.get("conclusion")
+
+    # Extract steps from the first job, filtering out GitHub infrastructure noise
+    steps: list[dict] = []
+    if jobs_resp.status_code == 200:
+        jobs = jobs_resp.json().get("jobs", [])
+        if jobs:
+            steps = [
+                {"name": s["name"], "status": _map_step_status(s)}
+                for s in jobs[0].get("steps", [])
+                if s.get("name") not in _SKIP_STEPS
+            ]
 
     output_url = None
     if status == "completed" and conclusion == "success":
@@ -286,4 +318,4 @@ async def get_render_status(run_id: int):
         "completed":   "completed" if conclusion == "success" else "failed",
     }.get(status, status)
 
-    return {"status": api_status, "output_url": output_url}
+    return {"status": api_status, "output_url": output_url, "steps": steps}
