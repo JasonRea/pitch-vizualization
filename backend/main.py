@@ -309,7 +309,7 @@ async def get_render_status(run_id: int):
         pitch_type   = job.get("pitch_type", "all")
         output_url   = (
             f"https://{DO_SPACES_BUCKET}.{DO_SPACES_REGION}.digitaloceanspaces.com"
-            f"/vizualizations/trajectories/{date}/{pitcher_slug}-{split}-{pitch_type}.mp4"
+            f"/vizualizations/{date}/{pitcher_slug}-{split}-{pitch_type}.mp4"
         )
 
     api_status = {

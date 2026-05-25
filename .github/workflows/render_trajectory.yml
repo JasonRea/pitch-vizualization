@@ -104,7 +104,7 @@ jobs:
           split        = os.environ.get('SPLIT', 'all') or 'all'
           pitch_type   = os.environ.get('PITCH_TYPE', '') or 'all'
 
-          s3_key = f"vizualizations/trajectories/{date}/{pitcher_slug}-{split}-{pitch_type}.mp4"
+          s3_key = f"vizualizations/{date}/{pitcher_slug}-{split}-{pitch_type}.mp4"
 
           # Find the MP4 generated after the render step started
           ref_time   = Path("/tmp/render_start").stat().st_mtime
