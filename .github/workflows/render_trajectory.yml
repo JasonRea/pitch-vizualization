@@ -1,0 +1,142 @@
+name: Render Pitch Trajectory
+
+on:
+  workflow_dispatch:
+    inputs:
+      pitcher_name:
+        description: 'Pitcher full name (e.g. "Ranger Suarez")'
+        required: true
+        type: string
+      date:
+        description: 'Game date (YYYY-MM-DD)'
+        required: true
+        type: string
+      split:
+        description: 'Batter split: all | left | right'
+        required: false
+        default: 'all'
+        type: string
+      pitch_type:
+        description: 'Pitch type code (e.g. FF, SL). Leave empty to include all pitches.'
+        required: false
+        default: ''
+        type: string
+      quality:
+        description: 'Render quality: low_quality | medium_quality | high_quality | fourk_quality'
+        required: false
+        default: 'low_quality'
+        type: string
+
+jobs:
+  render-and-upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache system dependencies
+        id: cache-apt
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-${{ runner.os }}-manim-libs
+
+      - name: Install system dependencies
+        if: steps.cache-apt.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libcairo2-dev \
+            libpango1.0-dev \
+            ffmpeg \
+            texlive-latex-base \
+            texlive-fonts-recommended
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Render pitch trajectory
+        env:
+          PITCHER_NAME: ${{ inputs.pitcher_name }}
+          DATE:         ${{ inputs.date }}
+          SPLIT:        ${{ inputs.split }}
+          PITCH_TYPE:   ${{ inputs.pitch_type }}
+          QUALITY:      ${{ inputs.quality }}
+        run: |
+          QUALITY="${QUALITY:-low_quality}"
+
+          touch /tmp/render_start
+
+          if [ -n "$PITCH_TYPE" ]; then
+            python3 run_vizualization.py -dp "$DATE" "$PITCHER_NAME" "$PITCH_TYPE" "$QUALITY"
+          elif [ "$SPLIT" = "left" ]; then
+            python3 run_vizualization.py -dl "$DATE" "$PITCHER_NAME" "$QUALITY"
+          elif [ "$SPLIT" = "right" ]; then
+            python3 run_vizualization.py -dr "$DATE" "$PITCHER_NAME" "$QUALITY"
+          else
+            python3 run_vizualization.py -d "$DATE" "$PITCHER_NAME" "$QUALITY"
+          fi
+
+      - name: Upload to DigitalOcean Spaces
+        env:
+          DO_SPACES_KEY:    ${{ secrets.DO_SPACES_KEY }}
+          DO_SPACES_SECRET: ${{ secrets.DO_SPACES_SECRET }}
+          DO_SPACES_BUCKET: ${{ secrets.DO_SPACES_BUCKET }}
+          DO_SPACES_REGION: ${{ secrets.DO_SPACES_REGION }}
+          PITCHER_NAME:     ${{ inputs.pitcher_name }}
+          DATE:             ${{ inputs.date }}
+          SPLIT:            ${{ inputs.split }}
+          PITCH_TYPE:       ${{ inputs.pitch_type }}
+        run: |
+          python3 - <<'EOF'
+          import boto3, glob, os
+          from pathlib import Path
+
+          pitcher_slug = os.environ['PITCHER_NAME'].lower().replace(' ', '_')
+          date         = os.environ['DATE']
+          split        = os.environ.get('SPLIT', 'all') or 'all'
+          pitch_type   = os.environ.get('PITCH_TYPE', '') or 'all'
+
+          s3_key = f"vizualizations/trajectories/{date}/{pitcher_slug}-{split}-{pitch_type}.mp4"
+
+          # Find the MP4 generated after the render step started
+          ref_time   = Path("/tmp/render_start").stat().st_mtime
+          mp4_files  = [
+              f for f in glob.glob("media/videos/**/*.mp4", recursive=True)
+              if "partial_movie_files" not in f
+              and Path(f).stat().st_mtime >= ref_time
+          ]
+
+          if not mp4_files:
+              print("ERROR: No rendered MP4 found — check that run_vizualization.py completed successfully.")
+              exit(1)
+
+          mp4_path = mp4_files[0]
+          print(f"Uploading {mp4_path} → {s3_key}")
+
+          session = boto3.session.Session()
+          client  = session.client(
+              's3',
+              region_name=os.environ['DO_SPACES_REGION'],
+              endpoint_url=f"https://{os.environ['DO_SPACES_REGION']}.digitaloceanspaces.com",
+              aws_access_key_id=os.environ['DO_SPACES_KEY'],
+              aws_secret_access_key=os.environ['DO_SPACES_SECRET'],
+          )
+
+          bucket = os.environ['DO_SPACES_BUCKET']
+          client.upload_file(
+              mp4_path, bucket, s3_key,
+              ExtraArgs={'ACL': 'public-read', 'ContentType': 'video/mp4'},
+          )
+
+          region = os.environ['DO_SPACES_REGION']
+          url    = f"https://{bucket}.{region}.digitaloceanspaces.com/{s3_key}"
+          print(f"Done: {url}")
+          EOF
