@@ -39,5 +39,10 @@ export const triggerRender = (req: RenderReq) =>
     body: JSON.stringify(req),
   });
 
+export type StepStatus = "pending" | "running" | "done" | "failed";
+export interface RenderStep { name: string; status: StepStatus; }
+
 export const getRenderStatus = (runId: number) =>
-  fetchJson<{ status: string; output_url: string | null }>(`${API_BASE}/render/${runId}`);
+  fetchJson<{ status: string; output_url: string | null; steps: RenderStep[] }>(
+    `${API_BASE}/render/${runId}`
+  );

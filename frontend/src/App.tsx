@@ -32,6 +32,7 @@ function BlockApp() {
     elapsed,
     error,
     outputUrl,
+    steps,
     canBuild,
     isWaiting,
     isTriggering,
@@ -139,6 +140,7 @@ function BlockApp() {
             elapsed={elapsed}
             outputUrl={outputUrl}
             error={error}
+            steps={steps}
           />
 
         </div>

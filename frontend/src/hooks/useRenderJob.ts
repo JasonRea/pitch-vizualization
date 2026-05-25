@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Block, Quality, RenderStatus } from "@/types";
-import { triggerRender, getRenderStatus } from "@/api/client";
+import { triggerRender, getRenderStatus, type RenderStep } from "@/api/client";
 
 export function useRenderJob(
   pitcherBlock: Block | null,
@@ -65,6 +65,7 @@ export function useRenderJob(
   }
 
   const outputUrl = statusData?.output_url ?? null;
+  const steps: RenderStep[] = statusData?.steps ?? [];
 
   return {
     quality,
@@ -74,6 +75,7 @@ export function useRenderJob(
     elapsed,
     error,
     outputUrl,
+    steps,
     canBuild,
     isWaiting,
     isTriggering,

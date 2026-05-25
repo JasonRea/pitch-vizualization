@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { DraggableBlock } from "./DraggableBlock";
 import { searchPitchers, getDates, getPitchTypes } from "@/api/client";
@@ -59,7 +58,7 @@ export function Sidebar({ pitcherBlock, dateBlock }: Props) {
         <h2 className="font-semibold text-sm text-foreground">Blocks</h2>
       </div>
 
-      <ScrollArea className="flex-1">
+      <div className="flex-1 overflow-y-auto min-h-0">
         <div className="p-4 flex flex-col gap-5">
 
           {/* Pitchers */}
@@ -173,7 +172,7 @@ export function Sidebar({ pitcherBlock, dateBlock }: Props) {
           </div>
 
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
