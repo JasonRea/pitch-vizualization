@@ -223,3 +223,6 @@ frontend/.env.local
 
 # Backend
 backend/__pycache__/
+
+# Temporarily disable workflows
+.github/workflows
